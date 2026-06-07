@@ -149,17 +149,26 @@ LABELS = {"icechunk": "Icechunk", "stac_b0": "STAC B0\n(naive)", "stac_b1": "STA
 N = N_TRIALS
 f1_b1_post = int(df_local[(df_local["scenario"] == "F1") & (df_local["system"] == "stac_b1")]["post_sweep_inconsistent"].sum())
 
+# The MinIO/NIRD object-store backend is optional — it requires private
+# credentials this notebook never stores (see data/README.md). A run without
+# them (e.g. CI, or a fresh clone) produces results.parquet with local-
+# filesystem rows only, so df_minio is empty. Detect that and degrade the
+# figure gracefully instead of crashing on an empty groupby.
 df_minio = df[df["backend"] == "minio"]
-N_MINIO = int(df_minio.groupby("scenario")["inconsistent"].count().iloc[0])
-minio_summary = (
-    df_minio[df_minio["system"] == "icechunk"]
-    .groupby("scenario")["inconsistent"]
-    .sum()
-    .reindex(SCENARIO_ORDER)
-    .fillna(0)
-)
+HAS_MINIO = not df_minio.empty
 
-fig, axes = plt.subplots(1, 4, figsize=(15, 4.5), gridspec_kw={"width_ratios": [1, 1, 1, 0.85]})
+if HAS_MINIO:
+    N_MINIO = int(df_minio.groupby("scenario")["inconsistent"].count().iloc[0])
+    minio_summary = (
+        df_minio[df_minio["system"] == "icechunk"]
+        .groupby("scenario")["inconsistent"]
+        .sum()
+        .reindex(SCENARIO_ORDER)
+        .fillna(0)
+    )
+    fig, axes = plt.subplots(1, 4, figsize=(15, 4.5), gridspec_kw={"width_ratios": [1, 1, 1, 0.85]})
+else:
+    fig, axes = plt.subplots(1, 3, figsize=(12, 4.5))
 
 for ax, scenario in zip(axes[:3], SCENARIO_ORDER):
     sub = summary[summary["scenario"] == scenario].set_index("system").reindex(SYSTEM_ORDER)
@@ -204,60 +213,82 @@ for ax, scenario in zip(axes[:3], SCENARIO_ORDER):
     ax.set_xticklabels([LABELS[s] for s in SYSTEM_ORDER], fontsize=9)
     ax.axhline(0, color="black", linewidth=0.8)
 
-# Panel 4 — object store (NIRD/Sigma2 S3-compatible, Icechunk only).
-# Separate y-scale (N_MINIO=100) since the trial count differs from the local-FS panels.
-# F1-F3 are structural (session-model) checks that pass on any backend; F4 is the
-# scenario that actually contests the branch tip and tests conditional-write/CAS — its
-# `conflict_rejected` count is the positive control this Outcome's Validated status
-# rests on, plotted here as a green bar (expected = N_MINIO) alongside `inconsistent`
-# (expected = 0), both measured for real against the NIRD/Sigma2 endpoint.
-SCENARIO_ORDER_MINIO = SCENARIO_ORDER + ["F4"]
-f4_minio = df_minio[(df_minio["scenario"] == "F4") & (df_minio["system"] == "icechunk")]
-f4_minio_conflict_rejected = int(f4_minio["conflict_rejected"].sum())
-f4_minio_inconsistent = int(f4_minio["inconsistent"].sum())
+if HAS_MINIO:
+    # Panel 4 — object store (NIRD/Sigma2 S3-compatible, Icechunk only).
+    # Separate y-scale (N_MINIO=100) since the trial count differs from the local-FS panels.
+    # F1-F3 are structural (session-model) checks that pass on any backend; F4 is the
+    # scenario that actually contests the branch tip and tests conditional-write/CAS — its
+    # `conflict_rejected` count is the positive control this Outcome's Validated status
+    # rests on, plotted here as a green bar (expected = N_MINIO) alongside `inconsistent`
+    # (expected = 0), both measured for real against the NIRD/Sigma2 endpoint.
+    SCENARIO_ORDER_MINIO = SCENARIO_ORDER + ["F4"]
+    f4_minio = df_minio[(df_minio["scenario"] == "F4") & (df_minio["system"] == "icechunk")]
+    f4_minio_conflict_rejected = int(f4_minio["conflict_rejected"].sum())
+    f4_minio_inconsistent = int(f4_minio["inconsistent"].sum())
 
-ax_minio = axes[3]
-bar_width = 0.32
-for i, scenario in enumerate(SCENARIO_ORDER_MINIO):
-    if scenario == "F4":
-        ax_minio.bar(i - bar_width / 2, f4_minio_conflict_rejected, width=bar_width,
-                     color="#4CAF50", edgecolor="white", linewidth=0.5,
-                     label="conflict_rejected\n(positive control, expect = N)")
-        ax_minio.bar(i + bar_width / 2, f4_minio_inconsistent, width=bar_width,
-                     color=COLORS["icechunk"], edgecolor="white", linewidth=0.5, alpha=0.6,
-                     label="inconsistent\n(expect = 0)")
-        ax_minio.text(i - bar_width / 2, f4_minio_conflict_rejected + N_MINIO * 0.04,
-                      f"{f4_minio_conflict_rejected}", ha="center", va="bottom",
-                      fontsize=9, fontweight="bold", color="#2E7D32")
-        ax_minio.text(i + bar_width / 2, f4_minio_inconsistent + N_MINIO * 0.04,
-                      f"{f4_minio_inconsistent}", ha="center", va="bottom",
-                      fontsize=9, fontweight="bold")
-        ax_minio.legend(fontsize=5.5, loc="upper left", frameon=False,
-                        handlelength=1.0, handleheight=1.0, labelspacing=0.4)
-    else:
-        count = minio_summary.loc[scenario]
-        ax_minio.bar(i, count, color=COLORS["icechunk"], edgecolor="white", linewidth=0.5)
-        ax_minio.text(i, count + N_MINIO * 0.04, f"{int(count)}", ha="center", va="bottom",
-                      fontsize=10, fontweight="bold")
+    ax_minio = axes[3]
+    bar_width = 0.32
+    for i, scenario in enumerate(SCENARIO_ORDER_MINIO):
+        if scenario == "F4":
+            ax_minio.bar(i - bar_width / 2, f4_minio_conflict_rejected, width=bar_width,
+                         color="#4CAF50", edgecolor="white", linewidth=0.5,
+                         label="conflict_rejected\n(positive control, expect = N)")
+            ax_minio.bar(i + bar_width / 2, f4_minio_inconsistent, width=bar_width,
+                         color=COLORS["icechunk"], edgecolor="white", linewidth=0.5, alpha=0.6,
+                         label="inconsistent\n(expect = 0)")
+            ax_minio.text(i - bar_width / 2, f4_minio_conflict_rejected + N_MINIO * 0.04,
+                          f"{f4_minio_conflict_rejected}", ha="center", va="bottom",
+                          fontsize=9, fontweight="bold", color="#2E7D32")
+            ax_minio.text(i + bar_width / 2, f4_minio_inconsistent + N_MINIO * 0.04,
+                          f"{f4_minio_inconsistent}", ha="center", va="bottom",
+                          fontsize=9, fontweight="bold")
+            ax_minio.legend(fontsize=5.5, loc="upper left", frameon=False,
+                            handlelength=1.0, handleheight=1.0, labelspacing=0.4)
+        else:
+            count = minio_summary.loc[scenario]
+            ax_minio.bar(i, count, color=COLORS["icechunk"], edgecolor="white", linewidth=0.5)
+            ax_minio.text(i, count + N_MINIO * 0.04, f"{int(count)}", ha="center", va="bottom",
+                          fontsize=10, fontweight="bold")
 
-ax_minio.set_title("F1-F4\n(NIRD/Sigma2 object store)", fontsize=11, fontweight="bold")
-ax_minio.set_ylabel(f"Worst-case trial count\n(deterministic, N={N_MINIO})")
-ax_minio.set_ylim(0, N_MINIO * 1.5)
-ax_minio.set_xticks(range(len(SCENARIO_ORDER_MINIO)))
-ax_minio.set_xticklabels(SCENARIO_ORDER_MINIO, fontsize=9)
-ax_minio.axhline(0, color="black", linewidth=0.8)
-ax_minio.text(0.5, -0.30, "Icechunk only — F4 is the scenario\nthat actually tests conditional\nwrites / CAS (see harness/faults.py)",
-              transform=ax_minio.transAxes, ha="center", fontsize=7, color="#777", style="italic")
+    ax_minio.set_title("F1-F4\n(NIRD/Sigma2 object store)", fontsize=11, fontweight="bold")
+    ax_minio.set_ylabel(f"Worst-case trial count\n(deterministic, N={N_MINIO})")
+    ax_minio.set_ylim(0, N_MINIO * 1.5)
+    ax_minio.set_xticks(range(len(SCENARIO_ORDER_MINIO)))
+    ax_minio.set_xticklabels(SCENARIO_ORDER_MINIO, fontsize=9)
+    ax_minio.axhline(0, color="black", linewidth=0.8)
+    ax_minio.text(0.5, -0.30, "Icechunk only — F4 is the scenario\nthat actually tests conditional\nwrites / CAS (see harness/faults.py)",
+                  transform=ax_minio.transAxes, ha="center", fontsize=7, color="#777", style="italic")
 
-fig.suptitle(
-    "Metadata–data inconsistency under fault injection — Icechunk vs STAC\n"
-    f"Panels 1–3: local filesystem backend, F1/F2/F3, {N} trials each · "
-    f"Panel 4: NIRD/Sigma2 S3 object store, F1-F4, {N_MINIO} trials each "
-    "(worst-case, deterministic; F4 = conditional-write/CAS positive control)",
-    fontsize=11, fontweight="bold",
-)
-fig.tight_layout()
-fig.savefig("../figures/main_result.png", dpi=150, bbox_inches="tight")
+    fig.suptitle(
+        "Metadata–data inconsistency under fault injection — Icechunk vs STAC\n"
+        f"Panels 1–3: local filesystem backend, F1/F2/F3, {N} trials each · "
+        f"Panel 4: NIRD/Sigma2 S3 object store, F1-F4, {N_MINIO} trials each "
+        "(worst-case, deterministic; F4 = conditional-write/CAS positive control)",
+        fontsize=11, fontweight="bold",
+    )
+    fig.tight_layout()
+    fig.savefig("../figures/main_result.png", dpi=150, bbox_inches="tight")
+else:
+    fig.suptitle(
+        "Metadata–data inconsistency under fault injection — Icechunk vs STAC\n"
+        f"Local filesystem backend, F1-F3, {N} trials each "
+        "(worst-case, deterministic) — see note below for the NIRD/Sigma2 evidence",
+        fontsize=11, fontweight="bold",
+    )
+    fig.tight_layout()
+    fig.savefig("../figures/main_result_local_only.png", dpi=150, bbox_inches="tight")
+    print(
+        "Note: this run has no MINIO_* credentials (see data/README.md), so it "
+        "could only exercise the local-filesystem backend (F1-F3) and the figure "
+        "above shows three panels, saved to figures/main_result_local_only.png.\n"
+        "\n"
+        "The fourth panel — the real NIRD/Sigma2 object-store run of F1-F4, whose "
+        "F4 conflict_rejected count is the positive control that the Validated "
+        "status in nanopubs/drafts/05_outcome.md rests on — was generated with "
+        "private credentials in a separate run and is committed at "
+        "figures/main_result.png. It is not regenerated here, so that an "
+        "incomplete run can never silently overwrite that evidence."
+    )
 plt.show()
 
 # %% [markdown]
@@ -265,6 +296,12 @@ plt.show()
 #
 # Every bar is a count of *observable inconsistencies* out of N independent trials —
 # lower is better, and 0 means "never seen to break, in this many tries."
+#
+# **Depending on whether this run had `MINIO_*` credentials, the figure above shows
+# either three panels (local filesystem only, saved to
+# `figures/main_result_local_only.png`) or four (the committed
+# `figures/main_result.png`, which adds the NIRD/Sigma2 object-store run described
+# in the last bullet below).** Panels 1-3 are identical either way.
 #
 # - **Panels 1 and 3 (F1, F3 — local filesystem):** Icechunk stays at 0. Both STAC
 #   variants land at N — i.e. *every single trial* produced a detectable mismatch
@@ -285,7 +322,8 @@ plt.show()
 #   orders its writes, not a guarantee enforced by the storage layer. Change the
 #   write order (or the system that writes), and the protection can disappear. F1
 #   and F3 still break it regardless.
-# - **Panel 4 (NIRD/Sigma2 — real cloud object store, Icechunk only):** this is
+# - **Panel 4, only present in `figures/main_result.png` (NIRD/Sigma2 — real cloud
+#   object store, Icechunk only):** this is
 #   the panel that matters most for "does the guarantee hold for real, on the kind
 #   of storage people actually use?" F1-F3 read 0, confirming the same all-or-nothing
 #   behaviour holds off of a local disk. **F4 is the decisive bar pair**: the green
