@@ -61,3 +61,4 @@ docker-image.tar.gz
 # Claude scratch
 .claude/.cache/
 .claude/local/
+.claude/scheduled_tasks.lock

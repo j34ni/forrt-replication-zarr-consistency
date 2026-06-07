@@ -16,7 +16,7 @@ from pathlib import Path
 
 import numpy as np
 
-from harness.invariant import check_icechunk, check_stac
+from harness.invariant import check_icechunk, check_stac, compute_sha256
 from harness.baseline_stac import (
     stac_initial_write,
     stac_b0_update,
@@ -110,12 +110,35 @@ def f2_stac_b0(zarr_path: str, stac_path: str, rng: np.random.Generator) -> bool
     return not consistent  # True = inconsistency observed (expected: True)
 
 
-def f2_stac_b1_not_applicable() -> bool:
+def f2_stac_b1(zarr_path: str, stac_path: str, rng: np.random.Generator) -> bool:
     """
-    B1 enforces data-before-STAC write ordering, so F2 cannot occur in B1.
-    The B1 sweeper also runs data-before-STAC. Returns False (no inconsistency by design).
+    F2-state measurement for B1: runs B1's real write path with a crash, then checks
+    whether the store is ever in an F2 state (STAC ahead of data — STAC references a
+    sha256 that the zarr array doesn't contain).
+
+    B1 enforces data-before-STAC ordering, so the F2 fault injection (crash between
+    a metadata write and a data write) cannot be replicated in B1 — there is no
+    metadata-before-data path to inject a fault into. Instead we measure the F2 *state*
+    directly after B1's real crash scenario, which is always an F1-type crash (data
+    written, STAC not yet updated). STAC should never be ahead of the data.
+
+    Returns True if STAC is ahead of data (F2 state observed) — expected: False.
+    Measuring this rather than asserting it makes the result falsifiable: a future
+    write-order regression in B1 would flip this to True.
     """
-    return False
+    from harness.invariant import stac_is_ahead_of_data
+    data_v1 = _random_data(rng)
+    stac_initial_write(zarr_path, stac_path, data_v1)
+
+    data_v2 = _random_data(rng)
+    new_sha256 = compute_sha256(data_v2)
+
+    try:
+        stac_b1_update(zarr_path, stac_path, data_v2, fault_point="after_data")
+    except SimulatedCrash:
+        pass
+
+    return stac_is_ahead_of_data(zarr_path, stac_path, new_sha256)
 
 
 # ---------------------------------------------------------------------------

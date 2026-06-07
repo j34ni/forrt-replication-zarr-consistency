@@ -49,3 +49,26 @@ def check_stac(zarr_path: str, stac_path: str) -> tuple[bool, str | None, str]:
         stac = json.load(fh)
     stored: str | None = stac.get("properties", {}).get("data_sha256", None)
     return stored == actual, stored, actual
+
+
+def stac_is_ahead_of_data(zarr_path: str, stac_path: str, candidate_sha256: str) -> bool:
+    """
+    F2-state detector: returns True if STAC references a sha256 that the zarr array
+    does not currently contain — i.e. STAC is ahead of the data.
+
+    This is distinct from the generic sha256 mismatch (check_stac): it specifically
+    tests whether STAC points at data that was *intended* to be written but wasn't
+    committed yet (the F2 failure mode for a metadata-before-data write ordering).
+
+    candidate_sha256 is the sha256 of the update that was attempted. If STAC stores
+    that value but zarr still holds the old data, STAC is ahead (F2 state).
+
+    For a correctly-ordered B1 implementation (data-before-STAC), this must always
+    return False — but making it a measured check means a future write-order regression
+    in B1 would flip it to True.
+    """
+    root = zarr.open_group(zarr_path, mode="r")
+    actual: str = compute_sha256(root["data"][:])
+    with open(stac_path) as fh:
+        stored: str | None = json.load(fh).get("properties", {}).get("data_sha256")
+    return stored == candidate_sha256 and actual != candidate_sha256
