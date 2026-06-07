@@ -52,7 +52,9 @@ from pathlib import Path
 # Runs F1, F2, F3 across Icechunk / STAC-B0 / STAC-B1 on the local filesystem backend.
 # Each scenario runs `N_TRIALS` independent trials with fresh stores.
 #
-# Runtime estimate: ~30 s for N_TRIALS=100 on a modern laptop.
+# Runtime estimate: ~5 min for N_TRIALS=1000 on a modern laptop (~30 s per 100 trials).
+# N_TRIALS=1000 matches the trial count cited throughout the Outcome nanopub
+# (`nanopubs/drafts/05_outcome.md`) and the figure below — keep them in sync.
 
 # %%
 import sys
@@ -61,17 +63,25 @@ sys.path.insert(0, str(Path("..").resolve()))
 from harness.run_matrix import run_all
 
 RESULTS_PATH = "../data/results/results.parquet"
-N_TRIALS = 100
+N_TRIALS = 1000
 
 df = run_all(n_trials=N_TRIALS, out_path=RESULTS_PATH, seed=42)
 df.head(12)
 
 # %% [markdown]
 # ## 2. Headline counts: inconsistencies per scenario × system
+#
+# `results.parquet` may also contain object-store (MinIO/NIRD) trials from a
+# `--minio-trials` run (see `harness/run_matrix.py`). This figure is scoped to the
+# *local filesystem* backend specifically — filter to it explicitly so a mixed-backend
+# results file doesn't silently inflate the Icechunk trial count (e.g. 1000 local +
+# 100 MinIO → 1100, corrupting the "N=1000" framing below).
 
 # %%
+df_local = df[df["backend"] == "local"]
+
 summary = (
-    df.groupby(["scenario", "system"])["inconsistent"]
+    df_local.groupby(["scenario", "system"])["inconsistent"]
     .agg(["sum", "count"])
     .rename(columns={"sum": "inconsistent_count", "count": "trials"})
     .reset_index()
@@ -81,41 +91,64 @@ print(summary.to_string(index=False))
 
 # %% [markdown]
 # ## 3. Figure: inconsistency count per scenario × system
+#
+# Design:
+# - **F1 B1**: labelled with pre-sweep (1000) + annotation showing post-sweep (→0).
+#   Bar height = window that exists; annotation shows it is recoverable.
+# - **F2 B1**: cross-hatched — this is a measured F2-state check (is STAC ever ahead
+#   of data?), not a fault injection. Zero is real but means "write-ordering holds".
+# - **Y-axis**: worst-case trial count (deterministic injection), not a probability.
 
 # %%
 SYSTEM_ORDER = ["icechunk", "stac_b0", "stac_b1"]
 SCENARIO_ORDER = ["F1", "F2", "F3"]
 COLORS = {"icechunk": "#2196F3", "stac_b0": "#F44336", "stac_b1": "#FF9800"}
-LABELS = {"icechunk": "Icechunk", "stac_b0": "STAC B0 (naive)", "stac_b1": "STAC B1 (best-effort)"}
+LABELS = {"icechunk": "Icechunk", "stac_b0": "STAC B0\n(naive)", "stac_b1": "STAC B1\n(best-effort)"}
 
-fig, axes = plt.subplots(1, 3, figsize=(11, 4), sharey=True)
+N = N_TRIALS
+f1_b1_post = int(df_local[(df_local["scenario"] == "F1") & (df_local["system"] == "stac_b1")]["post_sweep_inconsistent"].sum())
+
+fig, axes = plt.subplots(1, 3, figsize=(12, 4.5), sharey=True)
 
 for ax, scenario in zip(axes, SCENARIO_ORDER):
     sub = summary[summary["scenario"] == scenario].set_index("system").reindex(SYSTEM_ORDER)
     counts = sub["inconsistent_count"].fillna(0)
-    bars = ax.bar(
-        [LABELS[s] for s in SYSTEM_ORDER],
-        counts,
-        color=[COLORS[s] for s in SYSTEM_ORDER],
-        edgecolor="white",
-        linewidth=0.5,
-    )
+
+    for i, (sys, count) in enumerate(zip(SYSTEM_ORDER, counts)):
+        hatch = "///" if (scenario == "F2" and sys == "stac_b1") else None
+        ax.bar(LABELS[sys], count, color=COLORS[sys], edgecolor="white",
+               linewidth=0.5, hatch=hatch)
+
+        label_y = count + N * 0.02
+        if scenario == "F1" and sys == "stac_b1":
+            ax.text(i, label_y, f"{int(count)}", ha="center", va="bottom",
+                    fontsize=10, fontweight="bold", color="#CC6600")
+            ax.annotate(
+                f"→ {f1_b1_post} post-sweep",
+                xy=(i, count * 0.5), xytext=(i, count + N * 0.22),
+                ha="center", fontsize=7.5, color="#555",
+                arrowprops=dict(arrowstyle="-|>", color="#888", lw=0.8),
+            )
+        elif scenario == "F2" and sys == "stac_b1":
+            ax.text(i, label_y, f"{int(count)}", ha="center", va="bottom",
+                    fontsize=10, fontweight="bold")
+            ax.text(i, label_y + N * 0.08, "write-order\nholds", ha="center",
+                    fontsize=7, color="#777", style="italic")
+        else:
+            ax.text(i, label_y, f"{int(count)}", ha="center", va="bottom",
+                    fontsize=10, fontweight="bold")
+
     ax.set_title(f"Scenario {scenario}", fontsize=11, fontweight="bold")
-    ax.set_ylabel("Inconsistencies observed" if ax is axes[0] else "")
-    ax.set_ylim(0, N_TRIALS * 1.1)
-    ax.tick_params(axis="x", labelsize=8)
+    ax.set_ylabel(f"Worst-case trial count\n(deterministic, N={N})" if ax is axes[0] else "")
+    ax.set_ylim(0, N * 1.5)
+    ax.set_xticks(range(len(SYSTEM_ORDER)))
+    ax.set_xticklabels([LABELS[s] for s in SYSTEM_ORDER], fontsize=9)
     ax.axhline(0, color="black", linewidth=0.8)
-    for bar, count in zip(bars, counts):
-        ax.text(
-            bar.get_x() + bar.get_width() / 2,
-            bar.get_height() + N_TRIALS * 0.02,
-            f"{int(count)}/{N_TRIALS}",
-            ha="center", va="bottom", fontsize=8,
-        )
 
 fig.suptitle(
-    f"Inconsistencies per {N_TRIALS} trials — local filesystem backend",
-    fontsize=12, fontweight="bold",
+    "Metadata–data inconsistency under fault injection — Icechunk vs STAC\n"
+    f"Local filesystem backend · F1/F2/F3 · {N} trials each (worst-case, deterministic)",
+    fontsize=11, fontweight="bold",
 )
 fig.tight_layout()
 fig.savefig("../figures/main_result.png", dpi=150, bbox_inches="tight")
