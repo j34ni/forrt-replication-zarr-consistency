@@ -1,40 +1,88 @@
-# Paper summary
+# Source summary (question-rooted chain — no upstream paper)
 
-> This is a working scratchpad for the paper-analysis phase. The output of this file feeds the Quote / AIDA / Claim drafts. It is not itself a nanopub.
+> This is the working scratchpad for Phase 1 of this replication. Because the chain is
+> question-rooted (no publicly published paper makes the claim), this file replaces the
+> paper-analysis role of `00_paper_summary.md` with a source-analysis role.
+> It is not itself a nanopub; it feeds the PICO / AIDA / Claim drafts.
 
-**Reference paper:** {{PAPER_TITLE}}
+---
 
-**DOI:** {{PAPER_DOI}}
+## Primary citable source
 
-**Authors:** _add._
+**Document:** zarr-datafusion-search README
+**URL:** https://github.com/developmentseed/zarr-datafusion-search
+**Authors:** Development Seed
+**Year:** accessed 2026
 
-**Year:** {{PAPER_YEAR}}
+**Internal Earthmover concept:** "Level 2 Data Collections in Zarr / Icechunk"
+(referenced in the README but not publicly released as a document)
 
-## Headline claim
+---
 
-The single sentence in the paper that this replication tests. Should be one of the paper's core empirical assertions, not a definition or framing statement.
+## The claim surfaced by this source
 
-> _Drafted from PDF in `paper/` — verify verbatim before promoting to `01_quote.md`._
+From the README's **Synchronization** bullet (verbatim, three sentences):
 
-## Methodology summary
+> Our current metadata management solutions (STAC, CMR, ODC) all use disconnected
+> metadata stores which reference raw data assets in object storage.
+> This can present problems as systems require complex, fragile orchestration to maintain
+> consistency between metadata indexes and source data.  Using Icechunk as store can
+> alleviate this as array data and metadata updates can be completed in a single atomic
+> transaction.
 
-A 5-10 line summary of how the original paper made the claim. Cover:
+This is the claim the replication tests. The chain starts with a **PICO question**
+(not a Quote-with-comment) because the Earthmover whitepaper that originated the claim
+was never publicly released; the README is the closest citable public source but was
+authored by Development Seed, not Earthmover.
 
-- **Data sources:** what data, how much, what coverage.
-- **Statistical / ML model:** what the headline regression / classifier / test is.
-- **Sample sizes:** observations, species, regions, time windows.
-- **Headline numerical result:** the number(s) the replication will compare against.
+---
+
+## Technical backing
+
+The formal atomicity guarantee is specified at:
+https://icechunk.io/en/latest/reference/spec/
+
+Key sentences from the spec (for reference — cite in the Study nanopub's methodology field, not here):
+
+> "Writes to repositories will be committed atomically and will not be partially visible."
+
+> "when updating the object in storage, the client MUST detect whether a different
+> session has updated the repo info in the interim."
+
+The spec also documents the conditional-write dependency: the guarantee holds only on
+object stores that support compare-and-swap. This is the variable we treat as a factor
+in the backend matrix (local FS / MinIO / real S3).
+
+---
+
+## Context: the Level 2 EO use case
+
+Earthmover's concept targets Level 2 Earth observation collections such as Sentinel-2 L2A:
+individual heterogeneous scenes that cannot be concatenated into a single datacube because
+each granule has variable dtypes, codecs, and CRS values. The proposed architecture stores
+both the array data and the granule metadata (acquisition date, bbox, CRS, band list) inside
+the same Zarr/Icechunk store, replacing the conventional pattern of a separate STAC/CMR/ODC
+metadata index referencing raw object storage.
+
+The replication tests specifically the **consistency sub-claim**: that unifying data and
+metadata in one transactional store eliminates the inconsistency window that the
+disconnected-index pattern creates.
+
+---
 
 ## Replication design choice
 
-Which of the three FORRT Study Types fits this replication?
+- [x] **Replication Study** — the study uses fault-injection methods that go beyond
+  passive reproduction; no original experimental data exists to reproduce. The design
+  is: same claim, new controlled experiment testing it.
 
-- [ ] **Reproduction Study** — direct reproduction: same methodology, same tools.
-- [ ] **Replication Study** — replication with different methodology or conditions.
-- [ ] **Reproduction/Replication Study** — both.
-
-Brief justification for the choice (one paragraph).
+---
 
 ## Notes for downstream drafts
 
-- _Anything specific to this paper that affects the Quote / AIDA / Claim wording._
+- CiTO Citation (step 06) cites the zarr-datafusion-search README URL with intention
+  `citesAsAuthority` (the closest public source articulating the claim). Additionally
+  cite the Icechunk spec with `usesMethodIn`.
+- AIDA (step 02) will be the declarative answer to the PICO question.
+- PICO content rule: fault scenarios, trial counts, backend matrix go in Study "how" —
+  not in Population or Outcome fields.

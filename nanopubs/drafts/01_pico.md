@@ -1,82 +1,84 @@
 # 01 — PICO Research Question (question-rooted chains, comparative)
 
-> Use this draft instead of `01_quote.md` if your chain is question-rooted with a clear comparator (X vs Y). For descriptive/scoping question-rooted chains, use `01_pcc.md`. See `docs/chain-decision-tree.md`.
+> Chain shape: question-rooted (no upstream paper). PICO chosen over PCC because the
+> question has a direct comparator: Icechunk vs disconnected STAC.
+> See `docs/chain-decision-tree.md` and `docs/forrt-form-fields.md` § PICO.
 >
-> Run the pre-flight checklist in `docs/forrt-form-fields.md` § Pre-flight checklist before drafting.
->
-> **After choosing the chain shape, delete the two step-1 alternates you aren't using.** Once you've decided this chain is question-rooted-comparative and keep `01_pico.md`, run:
+> Unused step-1 alternates to remove after approval:
 > ```bash
 > rm nanopubs/drafts/01_quote.md nanopubs/drafts/01_pcc.md
 > ```
 
 **Form heading:** *"PICO Research Question — Define a research question using the PICO framework (Population, Intervention, Comparator, Outcome)"*
 
+---
+
 ## Field-by-field draft
 
 ### Short ID (text input, required)
 
-Slug becomes part of the nanopub URI. Use kebab-case.
-
 ```
-
+icechunk-atomicity-pico-2026
 ```
 
 ### Research Question Title (text input, required)
 
-10-200 characters. Length-bounded.
+10–200 characters.
 
 ```
-
+Icechunk atomic transactions vs STAC: observable metadata–data consistency under faults
 ```
 
 ### Complete Research Question (textarea, required)
 
-One coherent sentence/paragraph that names P, I, C, O inline.
-
 ```
-
+Does storing array data and its metadata in a single transactional store (Icechunk)
+prevent observable metadata–data inconsistency, compared to a disconnected STAC index,
+when updates are interrupted or read concurrently?
 ```
 
 ### Question Type (radio button, required)
 
 - [ ] Causation
 - [ ] Descriptive
-- [ ] Effectiveness
+- [x] Effectiveness
 - [ ] Experience
 - [ ] Prediction
 
 ### Population (P) (textarea, required)
 
-Who/what is being studied. Discipline-level concept — not implementation. See `docs/pico-study-outcome-levels.md`.
-
 ```
-
+Systems managing Earth observation data collections composed of heterogeneous
+scene-level arrays paired with per-granule metadata, where data and metadata must
+remain mutually consistent across updates.
 ```
 
 ### Intervention (I) (textarea, required)
 
-The intervention or exposure being examined. Discipline-level concept.
-
 ```
-
+Storing array data and its associated metadata in a single transactional store
+(Icechunk), so that data and metadata updates are committed atomically.
 ```
 
 ### Comparison (C) (textarea, required)
 
-The comparison or control condition. Discipline-level concept.
-
 ```
-
+A disconnected metadata index (STAC) over object storage, where array data and
+metadata are written and managed separately with no shared transaction.
 ```
 
 ### Outcome (O) (textarea, required)
 
-What outcomes are being measured. The kind of measurement, not the value.
-
+```
+Observable metadata–data inconsistency: states in which metadata and the corresponding
+array data disagree, detectable by a reader, when updates are interrupted or occur
+concurrently.
 ```
 
-```
+---
 
 ## Publication note
 
-After publishing, paste the resulting URI into `nanopubs/PUBLISHED.md` step 01.
+After publishing on platform.sciencelive4all.org, paste the resulting URI into
+`nanopubs/PUBLISHED.md` step 01, then use that URI in the AIDA draft (`02_aida.md`)
+field "Relates to this nanopublication".

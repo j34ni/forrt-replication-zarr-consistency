@@ -1,41 +1,49 @@
-# 07 — Research Software (optional)
-
-> Run the pre-flight checklist in `docs/forrt-form-fields.md` § Pre-flight checklist before drafting.
->
-> **Scope check:** Research Software nanopubs describe **reusable software artefacts** — tools people would `pip install` or `git clone` to use in their own work. They do NOT describe one-off demo / reproduction repos. If your repo is a reproduction of someone else's paper, the reusable artefact is the *upstream library* it uses (e.g. `foscat`, `planktonclas`), not your reproduction repo. Author the Research Software nanopub for the upstream tool, not the demo. See `CLAUDE.md` § Layered architecture: FORRT vs Research Software.
+# 07 — Research Software
 
 **Form heading:** *"Research Software — Describe research software with metadata including repository, supporting publications, and related resources."*
+
+> **Scope check (passed):** the fault-injection harness (`harness/`) is a reusable
+> software artefact — it tests the atomicity guarantee of any Icechunk-backed store
+> against any disconnected STAC baseline, and can be reused by other replications or
+> adapted to different backends. It is NOT a one-off demo repo. Icechunk and STAC
+> themselves are not our software — this nanopub is for the harness only.
+>
+> This nanopub is published AFTER the FORRT chain (steps 01–06) and one-way cites the
+> Claim URI. It does not appear in the chain itself.
+
+---
 
 ## Field-by-field draft
 
 ### URI of published software (text input, required)
 
-Zenodo concept DOI URL when available, or a GitHub URL. Full URL form.
+Zenodo concept DOI URL once minted (Phase 4); use GitHub URL until then.
 
 ```
-{{ZENODO_DOI}}
+https://github.com/j34ni/forrt-replication-zarr
 ```
+
+> Update to `https://doi.org/<zenodo-concept-doi>` after Phase 4 release.
 
 ### Software Title (text input, required)
 
-The full name or title of the software.
-
 ```
-
+zarr-icechunk-atomicity-harness — fault-injection consistency test suite for Icechunk vs STAC
 ```
 
 ### Repository URL (text input, required)
 
 ```
-https://github.com/{{REPO_ORG}}/{{REPO_NAME}}
+https://github.com/j34ni/forrt-replication-zarr
 ```
 
 ### Research Project (text input, optional)
 
-URI of the FORRT Claim or PCC question this software is associated with — pull from `nanopubs/PUBLISHED.md`. This is the back-link to the FORRT chain.
+URI of the FORRT Claim (step 03) — the back-link from this software to the chain.
+Pull from `nanopubs/PUBLISHED.md` after publishing step 03.
 
 ```
-
+TBD — paste Claim URI after publishing step 03
 ```
 
 ### License (text input, optional)
@@ -46,18 +54,18 @@ https://spdx.org/licenses/MIT.html
 
 ### Related Datasets (repeatable group, optional)
 
-Input data DOIs (Zenodo data records, dataset DOIs, ESA product DOIs).
-
-- _Dataset URL 1: ___
-- _Dataset URL 2: ___
+*(skip — optional: the harness generates synthetic data; no external dataset DOIs)*
 
 ### Related Publications (repeatable group, optional)
 
-One-way back-links to the FORRT Outcome URI(s) the software implements, plus any cited methods papers.
+One-way back-links to the chain this software implements.
 
-- _Publication URL 1 (FORRT Outcome from step 05): ___
-- _Publication URL 2 (methods paper, optional): ___
+- Item 1 (FORRT Outcome URI, step 05): `TBD — paste after publishing step 05`
+- Item 2 (Development Seed prototype — cited work): `https://github.com/developmentseed/zarr-datafusion-search`
+
+---
 
 ## Publication note
 
-After publishing, paste the resulting URI into `nanopubs/PUBLISHED.md` step 07.
+Publish this AFTER steps 01–06 are complete and their URIs are in `nanopubs/PUBLISHED.md`.
+Paste the resulting URI into `nanopubs/PUBLISHED.md` step 07.
