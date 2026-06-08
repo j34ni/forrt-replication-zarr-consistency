@@ -6,12 +6,12 @@ This file is the canonical registry of published nanopub URIs for this replicati
 
 | Step | Template | URI | Published |
 |---|---|---|---|
-| 01 | Quote-with-comment (or PICO / PCC) | _not yet published_ | |
-| 02 | AIDA Sentence | _not yet published_ | |
-| 03 | FORRT Claim | _not yet published_ | |
-| 04 | FORRT Replication Study | _not yet published_ | |
-| 05 | FORRT Replication Outcome | _not yet published_ | |
-| 06 | CiTO Citation | _not yet published_ | |
+| 01 | Quote-with-comment (or PICO / PCC) | https://w3id.org/sciencelive/np/RAr8gFMssYFMRLUNDlclas5FcwrlHpcRZDRCbvv5y3UQQ | 2026-06-08 |
+| 02 | AIDA Sentence | https://w3id.org/sciencelive/np/RAipuVja1XFjYbKlMawMvyiD2gE6kUx7yo0AZoJYXdxiw | 2026-06-08 |
+| 03 | FORRT Claim | https://w3id.org/sciencelive/np/RANOgCkFxu_8v5IOAchT2fnnZZJk67ApVEqpTRm-gE85w | 2026-06-08 |
+| 04 | FORRT Replication Study | https://w3id.org/sciencelive/np/RAZ0vOtKCde72HBMNvLh99XPyurv0h2IYiXGpChRWNTKE | 2026-06-08 |
+| 05 | FORRT Replication Outcome | https://w3id.org/sciencelive/np/RATn8QuiQng-s2Y4B8tYjLK1BDpRGzo3sXOZ2qXlgC1Sg | 2026-06-08 |
+| 06 | CiTO Citation | https://w3id.org/sciencelive/np/RAd1DCWbDGeborhHyJqvpZ9cJQ8p2xAmR5LYbr-ArncmU | 2026-06-08 |
 
 ## Optional layers
 
